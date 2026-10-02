@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { CookieOptions, Request, Response } from 'express';
-import { LoginDto, RegisterDto } from './auth.dto';
+import { ChangePasswordDto, LoginDto, RegisterDto } from './auth.dto';
 import { AuthService, ClientMeta } from './auth.service';
 import { AuthUser, CurrentUser, JwtAuthGuard } from './jwt-auth.guard';
 
@@ -48,6 +48,14 @@ export class AuthController {
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     await this.auth.logout(req.cookies?.[REFRESH_COOKIE]);
     res.clearCookie(REFRESH_COOKIE, cookieOptions());
+  }
+
+  @Post('change-password')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.respond(res, await this.auth.changePassword(user.sub, dto, metaOf(req)));
   }
 
   @Get('me')

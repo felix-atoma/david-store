@@ -12,7 +12,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "db:import": "tsx prisma/import-products.ts"
+    "db:import": "tsx prisma/import-products.ts",
+    "admin:reset-password": "tsx prisma/reset-admin-password.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

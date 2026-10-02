@@ -24,6 +24,18 @@ export class RegisterDto {
   password: string;
 }
 
+export class ChangePasswordDto {
+  @IsString()
+  @MaxLength(128)
+  currentPassword: string;
+
+  @IsString()
+  @MinLength(10, { message: 'New password must be at least 10 characters' })
+  @MaxLength(128)
+  @Matches(/(?=.*[A-Za-z])(?=.*\d)/, { message: 'New password must contain letters and at least one number' })
+  newPassword: string;
+}
+
 export class LoginDto {
   /** Email address or phone number. */
   @IsString()

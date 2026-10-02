@@ -1,7 +1,7 @@
 import { formatGhs } from '@david-store/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
-import { useSession } from '../session';
+import { useSession, type SessionResponse } from '../session';
 
 interface PaymentSettings {
   hubtel: { connected: false } | { connected: true; source: 'dashboard' | 'environment'; apiId: string; apiKey: string; merchantAccount: string };
@@ -22,19 +22,85 @@ interface TestResult extends Check {
 
 export default function Settings() {
   const { user } = useSession();
-  if (user?.role !== 'SUPER_ADMIN') {
-    return (
-      <>
-        <h1>Settings</h1>
-        <p className="muted">Only the store owner can change payment settings.</p>
-      </>
-    );
-  }
   return (
     <>
       <h1>Settings</h1>
-      <HubtelSettings />
+      <div className="stack" style={{ gap: 20 }}>
+        <AccountSettings />
+        {user?.role === 'SUPER_ADMIN' ? <HubtelSettings /> : <p className="muted">Only the store owner can change payment settings.</p>}
+      </div>
     </>
+  );
+}
+
+/** Every admin user can change their own password; other devices are signed out. */
+function AccountSettings() {
+  const { user, refreshSession } = useSession();
+  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const tooShort = form.next.length > 0 && form.next.length < 10;
+  const needsNumber = form.next.length > 0 && !(/[A-Za-z]/.test(form.next) && /\d/.test(form.next));
+  const mismatch = form.confirm.length > 0 && form.confirm !== form.next;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (tooShort || needsNumber || mismatch) return;
+    setBusy(true);
+    setError('');
+    setDone(false);
+    try {
+      const session = await api<SessionResponse>('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword: form.current, newPassword: form.next }),
+      });
+      refreshSession(session);
+      setForm({ current: '', next: '', confirm: '' });
+      setDone(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="panel" style={{ maxWidth: 760 }}>
+      <h2 style={{ marginTop: 0 }}>Your account</h2>
+      <p className="muted">
+        Signed in as <strong>{user?.email}</strong>
+      </p>
+      <form className="stack" onSubmit={submit} style={{ maxWidth: 420 }}>
+        <h3 style={{ margin: 0 }}>Change password</h3>
+        <label>
+          Current password
+          <input type={show ? 'text' : 'password'} value={form.current} onChange={(e) => setForm({ ...form, current: e.target.value })} required autoComplete="current-password" />
+        </label>
+        <label>
+          New password
+          <input type={show ? 'text' : 'password'} value={form.next} onChange={(e) => setForm({ ...form, next: e.target.value })} required minLength={10} autoComplete="new-password" />
+          <span className={tooShort || needsNumber ? 'error' : 'muted'} style={{ fontSize: 13 }}>
+            At least 10 characters, with letters and at least one number.
+          </span>
+        </label>
+        <label>
+          Repeat new password
+          <input type={show ? 'text' : 'password'} value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} required autoComplete="new-password" />
+          {mismatch && <span className="error" style={{ fontSize: 13 }}>The two new passwords don't match.</span>}
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> Show passwords
+        </label>
+        <button className="btn" disabled={busy || tooShort || needsNumber || mismatch}>
+          {busy ? 'Saving…' : 'Change password'}
+        </button>
+        {done && <p className="ok">Password changed. You stay signed in here; every other device has been signed out.</p>}
+        {error && <p className="error">{error}</p>}
+      </form>
+    </div>
   );
 }
 

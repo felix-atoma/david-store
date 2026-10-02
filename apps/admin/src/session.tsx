@@ -9,7 +9,7 @@ export interface AdminUser {
   permissions: string[];
 }
 
-interface SessionResponse {
+export interface SessionResponse {
   accessToken: string;
   user: AdminUser;
 }
@@ -21,6 +21,8 @@ interface Session {
   ready: boolean;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Adopt a session the API just issued, e.g. after a password change. */
+  refreshSession: (s: SessionResponse) => void;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -65,7 +67,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  return <SessionContext.Provider value={{ user, ready, login, logout }}>{children}</SessionContext.Provider>;
+  return <SessionContext.Provider value={{ user, ready, login, logout, refreshSession: accept }}>{children}</SessionContext.Provider>;
 }
 
 export const useSession = () => useContext(SessionContext)!;

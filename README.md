@@ -27,6 +27,8 @@ pnpm dev                                     # api, web and admin together
 
 The seed prints the admin password when `SEED_ADMIN_PASSWORD` is empty. The six "Sample …" products are for development only, so delete them before launch.
 
+**Admin passwords:** each admin changes their own in Admin › Settings › Your account. If someone is locked out, run `pnpm --filter @david-store/api admin:reset-password <email>` with `DATABASE_URL` pointing at the right database; it prints a temporary password once and signs that account out everywhere.
+
 ## Decisions worth knowing
 
 - **Money is integer pesewas** everywhere (GH₵ 1.00 = 100). Use `formatGhs` and `toPesewas` from `@david-store/shared`.
