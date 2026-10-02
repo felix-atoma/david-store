@@ -36,7 +36,7 @@ The seed prints the admin password when `SEED_ADMIN_PASSWORD` is empty. The six 
 - **Hubtel payments** (`apps/api/src/payments`). The API starts a Hubtel Online Checkout and sends the customer there. An order is marked paid only after Hubtel's **transaction status check** confirms it. The callback alone is never trusted, and settling is idempotent. Hubtel's status API only answers from whitelisted IPs, so the API host needs a fixed outbound IP. Endpoint URLs follow Hubtel's docs; check them against developers.hubtel.com before go-live.
 - **Auth.** Short-lived JWT access token (in memory) plus a rotating refresh token in an httpOnly cookie (`ds_refresh`, stored hashed). Reusing a rotated refresh token revokes every session for that user. Roles: CUSTOMER, SUPER_ADMIN, STAFF (with per-area `permissions`), VENDOR, RIDER. Use `@UseGuards(JwtAuthGuard)` with `@Roles(...)` and `@RequirePermission(...)`.
 - **Share previews and SEO.** The storefront is a single-page app, so `apps/web/vercel.json` sends link-preview bots (WhatsApp, Facebook, X, Google) on `/p/:slug` and `/c/:slug` to `/api/seo/...`. That returns `index.html` with the title, Open Graph tags and product JSON-LD filled in. `/sitemap.xml` is served by the API too.
-- **Same-origin API in production.** Both Vercel projects rewrite `/api/*` to the API host, so the refresh cookie is first-party. Replace `YOUR-API-HOST` in both `vercel.json` files.
+- **Same-origin API in production.** Both Vercel projects rewrite `/api/*` to the API host, so the refresh cookie is first-party. The API host is set in both `vercel.json` files.
 
 ## Built so far vs. next
 

@@ -1,17 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://YOUR-API-HOST/api/:path*" },
-    { "source": "/sitemap.xml", "destination": "https://YOUR-API-HOST/api/seo/sitemap.xml" },
+    { "source": "/api/:path*", "destination": "https://david-store-api.onrender.com/api/:path*" },
+    { "source": "/sitemap.xml", "destination": "https://david-store-api.onrender.com/api/seo/sitemap.xml" },
     {
       "source": "/p/:slug",
       "has": [{ "type": "header", "key": "user-agent", "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|googlebot|bingbot).*" }],
-      "destination": "https://YOUR-API-HOST/api/seo/p/:slug"
+      "destination": "https://david-store-api.onrender.com/api/seo/p/:slug"
     },
     {
       "source": "/c/:slug",
       "has": [{ "type": "header", "key": "user-agent", "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|linkedinbot|slackbot|telegrambot|discordbot|googlebot|bingbot).*" }],
-      "destination": "https://YOUR-API-HOST/api/seo/c/:slug"
+      "destination": "https://david-store-api.onrender.com/api/seo/c/:slug"
     },
     { "source": "/((?!assets/|icon.svg|manifest.webmanifest|sw.js|workbox-).*)", "destination": "/index.html" }
   ]
