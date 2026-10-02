@@ -76,6 +76,30 @@ export default function Header() {
           </form>
         </div>
         <nav className="nav" aria-label="Categories">
+          {categories.length > 0 && (
+            <div className="mega mega-all">
+              <a href="#all-categories" onClick={(e) => e.preventDefault()} aria-haspopup="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                All categories
+              </a>
+              <div className="mega-panel" id="all-categories">
+                {categories.map((c) => (
+                  <div key={c.id}>
+                    <Link to={`/c/${c.slug}`} className="mega-heading">
+                      {c.name}
+                    </Link>
+                    {c.children.map((child) => (
+                      <Link key={child.id} to={`/c/${child.slug}`}>
+                        {child.name}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {categories.map((c) => (
             <div key={c.id} className="mega">
               <Link to={`/c/${c.slug}`}>{c.name}</Link>

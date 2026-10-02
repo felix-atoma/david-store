@@ -146,8 +146,22 @@ img {
 }
 
 @media (hover: hover) and (min-width: 769px) {
+  /* One line that scrolls inside itself, so many categories never make the page wider than
+     the screen. "All categories" at the start lists everything. Panels are positioned
+     against the header (the sticky ancestor), so this strip's scrolling doesn't clip them. */
   .nav {
-    overflow: visible;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mega-panel {
+    top: 100%;
+    margin-top: 0;
+  }
+  /* Extends each category's hover area down to its panel, so the panel doesn't close
+     while the mouse crosses the gap. */
+  .mega {
+    padding-bottom: 8px;
+    margin-bottom: -8px;
   }
   .mega:hover .mega-panel {
     display: grid;
@@ -569,5 +583,21 @@ img {
   }
   .summary {
     position: static;
+  }
+}
+
+/* "All categories" opens a panel with every category; only useful with a mouse, so phones hide it
+   and keep the scrolling strip of category links. */
+.mega-all > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+@media (hover: none), (max-width: 768px) {
+  .mega-all {
+    display: none;
   }
 }
