@@ -99,7 +99,7 @@ async function seedDelivery() {
 
 async function seedSettings() {
   const settings: Record<string, unknown> = {
-    'store.name': 'David Store',
+    'store.name': 'Davo',
     'store.whatsapp': '',
     'delivery.freeThreshold': toPesewas(1000),
     'payments.podMaxOrder': toPesewas(3000),

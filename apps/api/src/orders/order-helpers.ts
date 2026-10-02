@@ -6,12 +6,12 @@ type Db = PrismaClient | Prisma.TransactionClient;
 // No 0/O or 1/I, so numbers read cleanly over the phone.
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-/** Customer-facing order number, e.g. DS26-7K3M9Q. Short enough for SMS and Hubtel's 32-character reference. */
+/** Customer-facing order number, e.g. DV26-7K3M9Q (DV for Davo). Short enough for SMS and Hubtel's 32-character reference. */
 export async function nextOrderNumber(db: Db) {
   const year = new Date().getFullYear().toString().slice(2);
   for (;;) {
     const code = Array.from({ length: 6 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('');
-    const number = `DS${year}-${code}`;
+    const number = `DV${year}-${code}`;
     if (!(await db.order.findUnique({ where: { number }, select: { id: true } }))) return number;
   }
 }

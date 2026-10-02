@@ -1,6 +1,6 @@
-# David Store
+# Davo
 
-Online store for David, modelled on Jumia, for Ghana. He sells across every category, paid with MoMo or card through Hubtel or cash on delivery. The project spec lives in Claude Docs: "David's E-Commerce Platform — Project Specification".
+Davo is David's online store for Ghana, modelled on Jumia. He sells across every category, paid with MoMo or card through Hubtel or cash on delivery. The project spec lives in Claude Docs: "David's E-Commerce Platform — Project Specification".
 
 ## Layout
 
@@ -9,6 +9,7 @@ Online store for David, modelled on Jumia, for Ghana. He sells across every cate
 | `apps/api` | NestJS + Prisma API, one for all three apps | 3000 |
 | `apps/web` | Storefront (Vite + React, installable PWA) with the rider view at `/rider` | 5173 |
 | `apps/admin` | Admin dashboard (Vite + React) | 5174 |
+| `brand/` | Davo logo files, colours and usage rules | |
 | `packages/shared` | Types and helpers both sides use: money, order statuses, the starter category tree | |
 
 ## Run it locally

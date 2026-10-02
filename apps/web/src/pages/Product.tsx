@@ -69,7 +69,7 @@ export default function ProductPage() {
       .then((p) => {
         setProduct(p);
         setVariantId(p.variants[0]?.id ?? '');
-        document.title = `${p.name} | David Store`;
+        document.title = `${p.name} | Davo`;
         rememberView(p.slug);
       })
       .catch((e: Error) => setError(e.message));

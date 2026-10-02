@@ -8,16 +8,20 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'logo.svg', 'favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'David Store',
-        short_name: 'Store',
+        name: 'Davo',
+        short_name: 'Davo',
         description: 'Shop online in Ghana: phones, electronics, fashion, home and more.',
         theme_color: '#1d4ed8',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
-        icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
+        icons: [
+          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
       workbox: {
         // API responses are never served from the service worker cache: stock and prices must be live.

@@ -49,9 +49,13 @@ a {
 }
 
 .brand {
-  font-weight: 800;
-  color: var(--brand);
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 0 16px 16px;
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .sidebar nav {

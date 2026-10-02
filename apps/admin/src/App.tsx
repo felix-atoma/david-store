@@ -40,7 +40,10 @@ function Shell() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">Store admin</div>
+        <div className="brand">
+          <img src="/logo.svg" alt="Davo" height={26} />
+          <span>Admin</span>
+        </div>
         <nav>
           {SECTIONS.map((s) => (
             <NavLink key={s.path} to={s.path} end={s.path === '/'}>

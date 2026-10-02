@@ -50,8 +50,8 @@ export default function Header() {
     <header className="header">
       <div className="container">
         <div className="header-row">
-          <Link to="/" className="logo">
-            David Store
+          <Link to="/" className="logo" aria-label="Davo home">
+            <img src="/logo.svg" alt="Davo" height={32} />
           </Link>
           <form className="search" onSubmit={submit} role="search">
             <input
