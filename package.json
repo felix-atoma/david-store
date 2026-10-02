@@ -1,0 +1,16 @@
+{
+  "name": "david-store",
+  "private": true,
+  "packageManager": "pnpm@10.27.0",
+  "scripts": {
+    "dev": "pnpm --filter @david-store/shared build && pnpm --parallel --filter ./apps/* dev",
+    "dev:api": "pnpm --filter @david-store/api dev",
+    "dev:web": "pnpm --filter @david-store/web dev",
+    "dev:admin": "pnpm --filter @david-store/admin dev",
+    "build": "pnpm --filter @david-store/shared build && pnpm --filter ./apps/* build",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @david-store/api db:migrate",
+    "db:seed": "pnpm --filter @david-store/api db:seed",
+    "db:studio": "pnpm --filter @david-store/api db:studio"
+  }
+}

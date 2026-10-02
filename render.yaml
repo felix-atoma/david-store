@@ -1,0 +1,40 @@
+# Render Blueprint: the API (NestJS). PostgreSQL is external (Neon), set via DATABASE_URL.
+# The storefront and admin are on Vercel; both rewrite /api/* to this service.
+services:
+  - type: web
+    name: david-store-api
+    runtime: node
+    plan: free
+    # pnpm workspace: install from the repo root, then build shared before the API.
+    buildCommand: npx -y pnpm@10.27.0 install --frozen-lockfile --prod=false && npx -y pnpm@10.27.0 --filter @david-store/shared build && npx -y pnpm@10.27.0 --filter @david-store/api build
+    # Migrations and the idempotent seed (admin, starter categories, settings) run on every start.
+    startCommand: cd apps/api && npx prisma migrate deploy && npx prisma db seed && node dist/main
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Neon: the direct (non-pooled) connection string with ?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: STOREFRONT_URL
+        sync: false
+      - key: API_PUBLIC_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_ADMIN_NAME
+        value: David
+      - key: HUBTEL_API_ID
+        sync: false
+      - key: HUBTEL_API_KEY
+        sync: false
+      - key: HUBTEL_MERCHANT_ACCOUNT
+        sync: false
