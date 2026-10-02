@@ -6,27 +6,28 @@ The mark is a D-shaped shopping bag with a gold carrier handle; the wordmark is 
 
 | Name | Hex | Use |
 | --- | --- | --- |
-| Royal blue | `#1D4ED8` | Logo, buttons, links, app icon background |
-| Ghana gold | `#F5B700` | The bag handle and small accents only: too light for text on white |
-| Ink | `#141B34` | Body text, dark backgrounds |
-| White | `#FFFFFF` | Logo on blue or ink |
+| Violet | `#6D28D9` | Logo, buttons, links, banners, app icon background |
+| Gold | `#FBBF24` | The bag handle, sale badges and accents on violet: too light for text on white |
+| Ink | `#1E1B3A` | Body text, dark backgrounds |
+| White | `#FFFFFF` | Logo on violet or ink |
 
 ## Files
 
 | File | Use |
 | --- | --- |
 | `davo-logo.svg` | Main logo on white or light backgrounds |
-| `davo-logo-ink.svg` | Blue mark with dark lettering, for documents and print |
-| `davo-logo-white.svg` | On blue or dark backgrounds |
-| `davo-logo-1200.png`, `davo-logo-on-blue-1200.png` | Where SVG isn't accepted (WhatsApp, social profiles, invoices) |
+| `davo-logo-ink.svg` | Violet mark with dark lettering, for documents and print |
+| `davo-logo-white.svg` | On violet or dark backgrounds |
+| `davo-logo-1200.png`, `davo-logo-on-violet-1200.png` | Where SVG isn't accepted (WhatsApp, social profiles, invoices) |
 | `davo-wordmark.svg` | Lettering only, for tight horizontal spaces |
 | `davo-mark.svg`, `davo-mark-white.svg` | The bag alone: stickers, packaging tape, watermark |
 | `davo-app-icon.svg`, `davo-app-icon-512.png`, `davo-app-icon-192.png` | App icon, social profile picture |
 | `davo-app-icon-maskable-512.png` | Android installable-app icon (full-bleed, mark inside the safe zone) |
+| `davo-og-image-1200x630.png` | Link preview image for WhatsApp, Facebook and X |
 | `apple-touch-icon.png`, `favicon-32.png` | iPhone home screen, browser tab |
 
 ## Rules
 
 - Keep clear space around the logo at least the height of the bag handle.
 - Smallest sizes: the full logo 24 px tall on screen, the bag alone 16 px.
-- Don't recolour the bag or lettering beyond blue, ink or white, stretch it, add shadows, or put the blue logo on busy photos (use the white version on a blue band instead).
+- Don't recolour the bag or lettering beyond violet, ink or white, stretch it, add shadows, or put the violet logo on busy photos (use the white version on a violet band instead).

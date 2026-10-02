@@ -17,7 +17,7 @@ export default defineConfig({
         name: 'Davo',
         short_name: 'Davo',
         description: 'Shop online in Ghana: phones, electronics, fashion, home and more.',
-        theme_color: '#1d4ed8',
+        theme_color: '#6d28d9',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',

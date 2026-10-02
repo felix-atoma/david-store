@@ -8,10 +8,10 @@ const sharp = require('sharp');
 const OUT = __dirname;
 fs.mkdirSync(OUT, { recursive: true });
 
-const BLUE = '#1D4ED8';
-const GOLD = '#F5B700';
+const BRAND = '#6D28D9';
+const GOLD = '#FBBF24';
 const WHITE = '#FFFFFF';
-const INK = '#141B34';
+const INK = '#1E1B3A';
 
 // The mark in its 64-unit design grid: a D-shaped shopping bag with a wide gold carrier handle.
 // (A narrow thick handle plus a centred dot read as a padlock, so the handle is a thin wide loop and there is no dot.)
@@ -35,7 +35,7 @@ const appIcon = (size, { radius = 0.225, scale = 0.62 } = {}) => {
   const s = (size * scale) / MARK_BOX.h;
   const tx = size / 2 - (MARK_BOX.x + MARK_BOX.w / 2) * s;
   const ty = size / 2 - (MARK_BOX.y + MARK_BOX.h / 2) * s;
-  return svg(size, size, `<rect width="${size}" height="${size}" rx="${size * radius}" fill="${BLUE}"/><g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(4)})">${mark(WHITE)}</g>`);
+  return svg(size, size, `<rect width="${size}" height="${size}" rx="${size * radius}" fill="${BRAND}"/><g transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(4)})">${mark(WHITE)}</g>`);
 };
 
 // Wordmark "davo" in Fredoka Bold, outlined.
@@ -71,11 +71,11 @@ const wordmark = (color) => {
 };
 
 const files = {
-  'davo-logo.svg': lockup(BLUE, BLUE),
+  'davo-logo.svg': lockup(BRAND, BRAND),
   'davo-logo-white.svg': lockup(WHITE, WHITE),
-  'davo-logo-ink.svg': lockup(BLUE, INK),
-  'davo-wordmark.svg': wordmark(BLUE),
-  'davo-mark.svg': markOnly(BLUE),
+  'davo-logo-ink.svg': lockup(BRAND, INK),
+  'davo-wordmark.svg': wordmark(BRAND),
+  'davo-mark.svg': markOnly(BRAND),
   'davo-mark-white.svg': markOnly(WHITE),
   'davo-app-icon.svg': appIcon(512),
   'davo-app-icon-maskable.svg': appIcon(512, { radius: 0, scale: 0.5 }),
@@ -93,6 +93,6 @@ for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(
   await png(appIcon(180, { radius: 0, scale: 0.6 }), 180, 'apple-touch-icon.png');
   await png(appIcon(64, { radius: 0.2, scale: 0.7 }), 32, 'favicon-32.png');
   await sharp(Buffer.from(files['davo-logo.svg']), { density: 300 }).resize({ width: 1200 }).png().toFile(path.join(OUT, 'davo-logo-1200.png'));
-  await sharp(Buffer.from(files['davo-logo-white.svg']), { density: 300 }).resize({ width: 1200 }).flatten({ background: BLUE }).png().toFile(path.join(OUT, 'davo-logo-on-blue-1200.png'));
+  await sharp(Buffer.from(files['davo-logo-white.svg']), { density: 300 }).resize({ width: 1200 }).flatten({ background: BRAND }).png().toFile(path.join(OUT, 'davo-logo-on-violet-1200.png'));
   console.log(fs.readdirSync(OUT).map((f) => `${f} ${Math.round(fs.statSync(path.join(OUT, f)).size / 1024)}KB`).join('\n'));
 })();

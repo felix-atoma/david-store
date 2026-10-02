@@ -1,5 +1,5 @@
 :root {
-  --brand: #1d4ed8;
+  --brand: #6d28d9;
   --bg: #f5f6f8;
   --surface: #ffffff;
   --text: #1f2933;
@@ -70,7 +70,7 @@ a {
 }
 
 .sidebar nav a.active {
-  background: #eef2ff;
+  background: #f4efff;
   color: var(--brand);
   font-weight: 600;
 }
@@ -196,7 +196,7 @@ a {
 }
 
 .tree-item.active {
-  background: #eef2ff;
+  background: #f4efff;
   color: var(--brand);
 }
 
