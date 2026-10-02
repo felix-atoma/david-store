@@ -3,7 +3,6 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { DeliveryMethod, OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import { visibleProduct } from '../catalog/products.service';
 import { SettingsService } from '../common/settings.service';
-import { HubtelService } from '../payments/hubtel.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './orders.dto';
 import { nextOrderNumber, takeStock } from './order-helpers';
@@ -15,7 +14,6 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
-    private readonly hubtel: HubtelService,
   ) {}
 
   /** Everything the checkout page needs to show delivery choices, fees and payment options. */
@@ -32,9 +30,10 @@ export class OrdersService {
       }),
       this.settings.get<number>('delivery.freeThreshold', 0),
       this.settings.get<number>('payments.podMaxOrder', 0),
-      this.hubtel.configured(),
+      this.settings.activeProvider(),
     ]);
-    return { zones, pickupStations: stations, freeDeliveryThreshold: freeThreshold, payOnDeliveryMax: podMax, onlinePayments: online };
+    // Paystack sends its receipt by email, so checkout asks for one when paying online through it.
+    return { zones, pickupStations: stations, freeDeliveryThreshold: freeThreshold, payOnDeliveryMax: podMax, onlinePayments: Boolean(online), emailRequiredOnline: online === 'PAYSTACK' };
   }
 
   async checkoutItem(variantId: string) {
@@ -56,8 +55,10 @@ export class OrdersService {
 
   async create(dto: CreateOrderDto) {
     const online = dto.paymentMethod !== PaymentMethod.PAY_ON_DELIVERY;
-    if (online && !(await this.hubtel.configured())) {
-      throw new ServiceUnavailableException('MoMo and card payments are not switched on yet. Choose pay on delivery.');
+    if (online) {
+      const provider = await this.settings.activeProvider();
+      if (!provider) throw new ServiceUnavailableException('MoMo and card payments are not switched on yet. Choose pay on delivery.');
+      if (provider === 'PAYSTACK' && !dto.email) throw new BadRequestException('Enter your email address for the payment receipt.');
     }
 
     // Merge repeated variants, then load what is actually on sale.

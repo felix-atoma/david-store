@@ -27,6 +27,8 @@ interface Options {
   freeDeliveryThreshold: number;
   payOnDeliveryMax: number;
   onlinePayments: boolean;
+  /** Paystack emails the payment receipt, so it needs an address. */
+  emailRequiredOnline: boolean;
 }
 
 interface Item {
@@ -102,6 +104,7 @@ export default function Checkout() {
     return { subtotal, deliveryFee, total: subtotal + deliveryFee, days };
   }, [item, options, quantity, method, zoneId, stationId]);
 
+  const emailNeeded = Boolean(options?.emailRequiredOnline && payment !== 'PAY_ON_DELIVERY');
   const podTooBig = Boolean(options && totals && options.payOnDeliveryMax > 0 && totals.total > options.payOnDeliveryMax);
 
   const submit = async (e: React.FormEvent) => {
@@ -168,8 +171,8 @@ export default function Checkout() {
               <input value={form.phone} onChange={(e) => set({ phone: e.target.value })} required inputMode="tel" placeholder="024 123 4567" autoComplete="tel" />
             </label>
             <label>
-              Email (optional, for your receipt)
-              <input type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} autoComplete="email" />
+              {emailNeeded ? 'Email (for your payment receipt)' : 'Email (optional, for your receipt)'}
+              <input type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} required={emailNeeded} autoComplete="email" />
             </label>
           </div>
         </section>

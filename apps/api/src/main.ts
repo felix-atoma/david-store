@@ -7,7 +7,8 @@ import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody keeps the exact request bytes so Paystack webhook signatures can be checked.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   app.set('trust proxy', 1);
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));

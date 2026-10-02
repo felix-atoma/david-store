@@ -387,6 +387,19 @@ enum ImportStatus {
 }
 
 /// Bulk CSV/Excel upload. Rows are validated first; nothing is saved until every row passes.
+/// Uploaded images (product photos), already compressed to WebP. Kept in the database until a
+/// Cloudinary account exists; served from /api/media/<id>.webp with a year-long cache.
+model MediaFile {
+  id          String   @id @default(cuid())
+  data        Bytes
+  mime        String
+  width       Int
+  height      Int
+  size        Int
+  createdById String?
+  createdAt   DateTime @default(now())
+}
+
 model ImportJob {
   id          String       @id @default(cuid())
   createdById String
@@ -761,6 +774,7 @@ model OrderStatusEvent {
 
 enum PaymentProvider {
   HUBTEL
+  PAYSTACK
   CASH
   WALLET
 }

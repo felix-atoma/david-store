@@ -1,12 +1,16 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { OrderStatus, PaymentMethod, PaymentProvider, Prisma, TransactionStatus } from '@prisma/client';
+import { Order, OrderStatus, PaymentMethod, PaymentProvider, Prisma, TransactionStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { SettingsService } from '../common/settings.service';
 import { nextOrderNumber, takeStock } from '../orders/order-helpers';
 import { PrismaService } from '../prisma/prisma.service';
 import { HubtelService } from './hubtel.service';
+import { PaystackService } from './paystack.service';
 
 const ONLINE_METHODS: PaymentMethod[] = [PaymentMethod.MOMO, PaymentMethod.CARD];
+
+type OrderWithUser = Order & { user: { name: string; email: string | null; phone: string | null } | null };
 
 @Injectable()
 export class PaymentsService {
@@ -15,13 +19,15 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly hubtel: HubtelService,
+    private readonly paystack: PaystackService,
+    private readonly settings: SettingsService,
     private readonly config: ConfigService,
   ) {}
 
   /**
-   * Starts a Hubtel checkout for an order awaiting payment and returns the page to send the
-   * customer to. Each attempt gets its own clientReference, so a retry after a failed MoMo
-   * prompt doesn't collide with the first one.
+   * Starts an online payment for an order awaiting payment, through whichever gateway is active,
+   * and returns the page to send the customer to. Each attempt gets its own reference, so a retry
+   * after a failed MoMo prompt doesn't collide with the first one.
    */
   async startCheckout(orderNumber: string) {
     const order = await this.prisma.order.findUnique({
@@ -33,44 +39,66 @@ export class PaymentsService {
     if (!ONLINE_METHODS.includes(order.paymentMethod)) throw new BadRequestException('This order is not paid online');
     if (order.status !== OrderStatus.PENDING_PAYMENT) throw new BadRequestException('This order can no longer be paid');
 
-    const amount = order.total - order.walletAmount;
-    // Hubtel caps clientReference at 32 characters.
-    const clientReference = `${order.number}-${randomBytes(3).toString('hex')}`.slice(0, 32);
-    const storefront = this.config.getOrThrow<string>('STOREFRONT_URL');
-    const api = this.config.getOrThrow<string>('API_PUBLIC_URL');
+    const provider = await this.settings.activeProvider();
+    if (!provider) throw new ServiceUnavailableException('Online payments are not set up yet');
 
-    const checkout = await this.hubtel.initiateCheckout({
-      amount,
-      description: `Order ${order.number}`,
-      clientReference,
-      callbackUrl: `${api}/api/payments/hubtel/callback`,
-      returnUrl: `${storefront}/checkout/complete?ref=${clientReference}`,
-      cancellationUrl: `${storefront}/checkout/complete?ref=${clientReference}&cancelled=1`,
-      payeeName: order.user?.name ?? order.guestName ?? undefined,
-      payeeMobileNumber: (order.user?.phone ?? order.guestPhone ?? undefined)?.replace(/^\+/, ''),
-      payeeEmail: order.user?.email ?? order.guestEmail ?? undefined,
-    });
+    const amount = order.total - order.walletAmount;
+    // Hubtel caps references at 32 characters; Paystack accepts the same format.
+    const reference = `${order.number}-${randomBytes(3).toString('hex')}`.slice(0, 32);
+    const returnUrl = `${this.config.getOrThrow<string>('STOREFRONT_URL')}/checkout/complete?ref=${reference}`;
+
+    const started = provider === 'PAYSTACK' ? await this.startPaystack(order, amount, reference, returnUrl) : await this.startHubtel(order, amount, reference, returnUrl);
 
     await this.prisma.payment.create({
       data: {
         orderId: order.id,
-        provider: PaymentProvider.HUBTEL,
+        provider: provider === 'PAYSTACK' ? PaymentProvider.PAYSTACK : PaymentProvider.HUBTEL,
         method: order.paymentMethod,
         amount,
-        clientReference,
-        checkoutId: checkout.checkoutId,
-        checkoutUrl: checkout.checkoutUrl,
+        clientReference: reference,
+        checkoutId: started.checkoutId,
+        checkoutUrl: started.checkoutUrl,
+        customerPhone: order.user?.phone ?? order.guestPhone,
       },
     });
-    return { checkoutUrl: checkout.checkoutUrl, clientReference };
+    return { checkoutUrl: started.checkoutUrl, clientReference: reference };
+  }
+
+  private async startHubtel(order: OrderWithUser, amount: number, reference: string, returnUrl: string) {
+    const api = this.config.getOrThrow<string>('API_PUBLIC_URL');
+    const checkout = await this.hubtel.initiateCheckout({
+      amount,
+      description: `Order ${order.number}`,
+      clientReference: reference,
+      callbackUrl: `${api}/api/payments/hubtel/callback`,
+      returnUrl,
+      cancellationUrl: `${returnUrl}&cancelled=1`,
+      payeeName: order.user?.name ?? order.guestName ?? undefined,
+      payeeMobileNumber: (order.user?.phone ?? order.guestPhone ?? undefined)?.replace(/^\+/, ''),
+      payeeEmail: order.user?.email ?? order.guestEmail ?? undefined,
+    });
+    return { checkoutId: checkout.checkoutId, checkoutUrl: checkout.checkoutUrl };
+  }
+
+  private async startPaystack(order: OrderWithUser, amount: number, reference: string, returnUrl: string) {
+    // Paystack needs an email for its receipt. Checkout asks for one with online payment;
+    // older orders without one get a placeholder Paystack accepts but never delivers to.
+    const phoneDigits = (order.user?.phone ?? order.guestPhone ?? '').replace(/\D/g, '') || order.number.toLowerCase();
+    const email = order.user?.email ?? order.guestEmail ?? `${phoneDigits}@customers.davo.invalid`;
+    const checkout = await this.paystack.initialize({
+      amount,
+      email,
+      reference,
+      callbackUrl: returnUrl,
+      metadata: { orderNumber: order.number, phone: order.user?.phone ?? order.guestPhone, isTest: order.isTest },
+    });
+    return { checkoutId: checkout.accessCode, checkoutUrl: checkout.checkoutUrl };
   }
 
   /** Hubtel's callback. Recorded for support, then confirmed through the status check before anything changes. */
-  async handleCallback(body: unknown) {
-    const data = (body as { Data?: { ClientReference?: string } })?.Data;
-    const reference = data?.ClientReference;
+  async handleHubtelCallback(body: unknown) {
+    const reference = (body as { Data?: { ClientReference?: string } })?.Data?.ClientReference;
     if (!reference) return;
-
     const payment = await this.prisma.payment.findUnique({ where: { clientReference: reference } });
     if (!payment) {
       this.logger.warn(`Hubtel callback for unknown reference ${reference}`);
@@ -80,21 +108,46 @@ export class PaymentsService {
     await this.verify(reference);
   }
 
+  /** Paystack's webhook: rejected unless signed with our secret key, then re-verified with Paystack. */
+  async handlePaystackWebhook(rawBody: Buffer | undefined, signature: string | undefined, body: unknown) {
+    if (!(await this.paystack.validSignature(rawBody, signature))) throw new UnauthorizedException('Bad signature');
+    const event = body as { event?: string; data?: { reference?: string } };
+    const reference = event.data?.reference;
+    if (event.event !== 'charge.success' || !reference) return;
+    const payment = await this.prisma.payment.findUnique({ where: { clientReference: reference } });
+    if (!payment) {
+      this.logger.warn(`Paystack webhook for unknown reference ${reference}`);
+      return;
+    }
+    await this.prisma.payment.update({ where: { id: payment.id }, data: { rawCallback: body as Prisma.InputJsonValue } });
+    await this.verify(reference);
+  }
+
   /**
-   * Asks Hubtel whether the payment went through and settles the order once. Called from the
-   * callback and from the storefront's return page, so it must be safe to run more than once.
+   * Asks the gateway whether the payment went through and settles the order once. Called from
+   * callbacks and from the storefront's return page, so it must be safe to run more than once.
    */
-  async verify(clientReference: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { clientReference }, include: { order: true } });
+  async verify(reference: string) {
+    const payment = await this.prisma.payment.findUnique({ where: { clientReference: reference }, include: { order: true } });
     if (!payment) throw new NotFoundException('Payment not found');
     if (payment.status !== TransactionStatus.PENDING) return this.summary(payment.status, payment.order.number);
 
-    const result = await this.hubtel.checkStatus(clientReference);
-    if (result.status !== 'Paid') return this.summary(payment.status, payment.order.number);
+    let paid: { amount: number; providerReference?: string; channel?: string } | null = null;
+    if (payment.provider === PaymentProvider.PAYSTACK) {
+      const tx = await this.paystack.verify(reference);
+      if (tx.status === 'failed') {
+        await this.prisma.payment.updateMany({ where: { id: payment.id, status: TransactionStatus.PENDING }, data: { status: TransactionStatus.FAILED } });
+        return this.summary(TransactionStatus.FAILED, payment.order.number);
+      }
+      if (tx.status === 'success' && tx.currency === 'GHS') paid = { amount: tx.amount, providerReference: tx.id ? String(tx.id) : undefined, channel: tx.channel };
+    } else {
+      const result = await this.hubtel.checkStatus(reference);
+      if (result.status === 'Paid') paid = { amount: Math.round(result.amount * 100), providerReference: result.transactionId, channel: result.paymentMethod };
+    }
+    if (!paid) return this.summary(payment.status, payment.order.number);
 
-    const paidPesewas = Math.round(result.amount * 100);
-    if (paidPesewas < payment.amount) {
-      this.logger.error(`Underpayment on ${clientReference}: expected ${payment.amount}, Hubtel reports ${paidPesewas}`);
+    if (paid.amount < payment.amount) {
+      this.logger.error(`Underpayment on ${reference}: expected ${payment.amount}, gateway reports ${paid.amount}`);
       return this.summary(payment.status, payment.order.number);
     }
 
@@ -102,21 +155,12 @@ export class PaymentsService {
       // The status filter makes this a no-op if a parallel call already settled it.
       const settled = await tx.payment.updateMany({
         where: { id: payment.id, status: TransactionStatus.PENDING },
-        data: {
-          status: TransactionStatus.SUCCESS,
-          providerReference: result.transactionId,
-          channel: result.paymentMethod,
-          verifiedAt: new Date(),
-        },
+        data: { status: TransactionStatus.SUCCESS, providerReference: paid.providerReference, channel: paid.channel, verifiedAt: new Date() },
       });
       if (!settled.count) return;
-      await tx.order.update({
-        where: { id: payment.orderId },
-        data: { paymentStatus: 'PAID', status: OrderStatus.PLACED },
-      });
-      await tx.orderStatusEvent.create({
-        data: { orderId: payment.orderId, status: OrderStatus.PLACED, note: `Paid by ${result.paymentMethod ?? 'Hubtel'}` },
-      });
+      await tx.order.update({ where: { id: payment.orderId }, data: { paymentStatus: 'PAID', status: OrderStatus.PLACED } });
+      const via = paid.channel === 'mobile_money' ? 'Mobile Money' : paid.channel === 'card' ? 'card' : paid.channel ?? payment.provider;
+      await tx.orderStatusEvent.create({ data: { orderId: payment.orderId, status: OrderStatus.PLACED, note: `Paid by ${via} via ${payment.provider === 'PAYSTACK' ? 'Paystack' : 'Hubtel'}` } });
       // Online orders take stock only once paid, so abandoned checkouts never hold it.
       await takeStock(tx, payment.orderId);
     });
@@ -124,14 +168,15 @@ export class PaymentsService {
   }
 
   /**
-   * A real GH₵ payment through Hubtel with no products attached, so David can watch a payment
-   * go through end to end. The order is flagged isTest and left out of reports.
+   * A small real payment (or a pretend one with Paystack test keys) with no products attached,
+   * so the owner can watch a payment go through end to end. Flagged isTest; left out of reports.
    */
   async startTestPayment(amount: number, actor: { sub: string; name: string; email: string | null }) {
     const order = await this.prisma.order.create({
       data: {
         number: await nextOrderNumber(this.prisma),
         userId: actor.sub,
+        guestEmail: actor.email,
         status: OrderStatus.PENDING_PAYMENT,
         paymentMethod: PaymentMethod.MOMO,
         deliveryMethod: 'PICKUP',
@@ -139,7 +184,7 @@ export class PaymentsService {
         deliveryFee: 0,
         total: amount,
         isTest: true,
-        customerNote: 'Hubtel test payment from the admin settings page',
+        customerNote: 'Test payment from the admin settings page',
         events: { create: { status: OrderStatus.PENDING_PAYMENT, note: 'Test payment started', actorId: actor.sub } },
       },
     });
@@ -147,7 +192,7 @@ export class PaymentsService {
   }
 
   async onlineAvailable() {
-    return this.hubtel.configured();
+    return Boolean(await this.settings.activeProvider());
   }
 
   private summary(status: TransactionStatus, orderNumber: string) {

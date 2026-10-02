@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Route, Routes } from 'react-router-dom';
 import Categories from './pages/Categories';
+import ProductEditor from './pages/ProductEditor';
 import Products from './pages/Products';
 import Settings from './pages/Settings';
 import { SessionProvider, useSession } from './session';
@@ -61,6 +62,7 @@ function Shell() {
       <main className="content">
         <Routes>
           <Route path="/products" element={<Products />} />
+          <Route path="/products/:id" element={<ProductEditor />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/settings" element={<Settings />} />
           {SECTIONS.filter((s) => !BUILT.includes(s.path)).map((s) => (

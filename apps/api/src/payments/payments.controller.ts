@@ -1,5 +1,6 @@
-import { Body, Controller, HttpCode, Logger, Param, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Logger, Param, Post, Req, type RawBodyRequest } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -26,11 +27,25 @@ export class PaymentsController {
   @Post('hubtel/callback')
   @HttpCode(200)
   @SkipThrottle()
-  async callback(@Body() body: unknown) {
+  async hubtelCallback(@Body() body: unknown) {
     try {
-      await this.payments.handleCallback(body);
+      await this.payments.handleHubtelCallback(body);
     } catch (err) {
       this.logger.error('Hubtel callback handling failed', err as Error);
+    }
+    return { received: true };
+  }
+
+  /** Unsigned or forged calls get 401; anything else answers 200 so Paystack stops retrying. */
+  @Post('paystack/webhook')
+  @HttpCode(200)
+  @SkipThrottle()
+  async paystackWebhook(@Req() req: RawBodyRequest<Request>, @Headers('x-paystack-signature') signature: string | undefined, @Body() body: unknown) {
+    try {
+      await this.payments.handlePaystackWebhook(req.rawBody, signature, body);
+    } catch (err) {
+      if ((err as { status?: number }).status === 401) throw err;
+      this.logger.error('Paystack webhook handling failed', err as Error);
     }
     return { received: true };
   }

@@ -2,9 +2,11 @@ import { Controller, Get, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AdminProductsModule } from './admin-products/admin-products.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { CommonModule } from './common/common.module';
+import { MediaModule } from './media/media.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -28,6 +30,8 @@ class HealthController {
     CatalogModule,
     PaymentsModule,
     OrdersModule,
+    MediaModule,
+    AdminProductsModule,
     SeoModule,
   ],
   controllers: [HealthController],

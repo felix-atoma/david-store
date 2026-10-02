@@ -3,8 +3,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { useSession, type SessionResponse } from '../session';
 
+type Provider = 'PAYSTACK' | 'HUBTEL';
+
 interface PaymentSettings {
   hubtel: { connected: false } | { connected: true; source: 'dashboard' | 'environment'; apiId: string; apiKey: string; merchantAccount: string };
+  paystack: { connected: false } | { connected: true; source: 'dashboard' | 'environment'; publicKey: string; secretKey: string; mode: 'test' | 'live' };
+  activeProvider: Provider | null;
+  preferredProvider: Provider | null;
+  paystackWebhookUrl: string;
   canSaveKeys: boolean;
   callbackUrl: string;
   returnUrl: string;
@@ -27,7 +33,7 @@ export default function Settings() {
       <h1>Settings</h1>
       <div className="stack" style={{ gap: 20 }}>
         <AccountSettings />
-        {user?.role === 'SUPER_ADMIN' ? <HubtelSettings /> : <p className="muted">Only the store owner can change payment settings.</p>}
+        {user?.role === 'SUPER_ADMIN' ? <PaymentSettingsSection /> : <p className="muted">Only the store owner can change payment settings.</p>}
       </div>
     </>
   );
@@ -104,7 +110,7 @@ function AccountSettings() {
   );
 }
 
-function HubtelSettings() {
+function HubtelSettings({ onChange }: { onChange: () => void }) {
   const [settings, setSettings] = useState<PaymentSettings | null>(null);
   const [form, setForm] = useState({ apiId: '', apiKey: '', merchantAccount: '' });
   const [editing, setEditing] = useState(false);
@@ -151,6 +157,7 @@ function HubtelSettings() {
       setEditing(false);
       setForm((f) => ({ ...f, apiKey: '' }));
       setTest(await api<TestResult>('/admin/settings/payments/hubtel/test', { method: 'POST' }));
+      onChange();
     });
   };
 
@@ -167,8 +174,7 @@ function HubtelSettings() {
         ) : (
           <strong className="error">Not connected</strong>
         )}
-        {!h.connected && <span className="muted"> · customers can only pay on delivery until keys are added.</span>}
-      </p>
+        </p>
 
       {h.connected && !editing && (
         <table className="table" style={{ marginBottom: 12 }}>
@@ -242,6 +248,7 @@ function HubtelSettings() {
                   await api('/admin/settings/payments/hubtel', { method: 'DELETE' });
                   setTest(null);
                   await load();
+                  onChange();
                 })
               }
             >
@@ -262,35 +269,6 @@ function HubtelSettings() {
         </ul>
       )}
       {error && <p className="error">{error}</p>}
-
-      {h.connected && (
-        <>
-          <h3>Try a real payment</h3>
-          <p className="muted">Pays a small real amount by MoMo or card through Hubtel and marks a test order as paid. Test orders are left out of sales reports.</p>
-          <div className="inline-form">
-            <select value={amount} onChange={(e) => setAmount(Number(e.target.value))} style={{ flex: '0 0 auto' }}>
-              {[100, 200, 500, 1000].map((a) => (
-                <option key={a} value={a}>
-                  {formatGhs(a)}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy === 'pay'}
-              onClick={() =>
-                run('pay', async () => {
-                  const r = await api<{ checkoutUrl: string }>('/admin/settings/payments/hubtel/test-payment', { method: 'POST', body: JSON.stringify({ amount }) });
-                  window.open(r.checkoutUrl, '_blank', 'noopener');
-                })
-              }
-            >
-              {busy === 'pay' ? 'Opening Hubtel…' : `Pay ${formatGhs(amount)} now`}
-            </button>
-          </div>
-        </>
-      )}
 
       <h3>Give these to Hubtel</h3>
       <table className="table">
@@ -313,6 +291,316 @@ function HubtelSettings() {
         Hubtel only answers payment status checks from IP addresses it has whitelisted. Send Hubtel the server's outbound IP addresses (Render dashboard › david-store-api › Connect › Outbound) and ask them to whitelist them for the
         transaction status API.
       </p>
+    </div>
+  );
+}
+
+/** Owner only: which gateway customers pay through, both gateways' keys, and a test payment. */
+function PaymentSettingsSection() {
+  const [version, setVersion] = useState(0);
+  const bump = useCallback(() => setVersion((v) => v + 1), []);
+  return (
+    <>
+      <PaymentsOverview version={version} onChange={bump} />
+      <PaystackSettings onChange={bump} />
+      <HubtelSettings onChange={bump} />
+    </>
+  );
+}
+
+const PROVIDER_NAMES: Record<Provider, string> = { PAYSTACK: 'Paystack', HUBTEL: 'Hubtel' };
+
+function PaymentsOverview({ version, onChange }: { version: number; onChange: () => void }) {
+  const [settings, setSettings] = useState<PaymentSettings | null>(null);
+  const [amount, setAmount] = useState(100);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api<PaymentSettings>('/admin/settings/payments').then(setSettings).catch((e: Error) => setError(e.message));
+  }, [version]);
+
+  if (!settings) return <div className="panel">{error || 'Loading…'}</div>;
+  const active = settings.activeProvider;
+  const testMode = active === 'PAYSTACK' && settings.paystack.connected && settings.paystack.mode === 'test';
+  const both = settings.paystack.connected && settings.hubtel.connected;
+
+  const run = async (label: string, fn: () => Promise<void>) => {
+    setBusy(label);
+    setError('');
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <div className="panel" style={{ maxWidth: 760 }}>
+      <h2 style={{ marginTop: 0 }}>Online payments</h2>
+      {active ? (
+        <p>
+          Customers pay by MoMo and card through <strong className="ok">{PROVIDER_NAMES[active]}</strong>
+          {testMode && (
+            <>
+              {' '}
+              <span className="badge-warn">TEST MODE</span> <span className="muted">no real money moves; switch to live keys before launch.</span>
+            </>
+          )}
+        </p>
+      ) : (
+        <p>
+          <strong className="error">Off.</strong> <span className="muted">Customers can only pay on delivery. Add Paystack test keys below to try MoMo and card checkout today.</span>
+        </p>
+      )}
+
+      {both && (
+        <div className="choice-row" role="radiogroup" aria-label="Customers pay through">
+          <span className="muted">Customers pay through:</span>
+          {(['PAYSTACK', 'HUBTEL'] as Provider[]).map((p) => (
+            <label key={p} className="check">
+              <input
+                type="radio"
+                name="provider"
+                checked={active === p}
+                disabled={busy === 'provider'}
+                onChange={() =>
+                  run('provider', async () => {
+                    setSettings(await api<PaymentSettings>('/admin/settings/payments/provider', { method: 'PUT', body: JSON.stringify({ provider: p }) }));
+                    onChange();
+                  })
+                }
+              />{' '}
+              {PROVIDER_NAMES[p]}
+            </label>
+          ))}
+        </div>
+      )}
+
+      {active && (
+        <>
+          <h3>Try a payment</h3>
+          <p className="muted">
+            {testMode
+              ? 'Opens the real Paystack checkout in test mode. Pay with the test card 4084 0840 8408 4081 (any future expiry date, CVV 408, PIN 0000, OTP 123456) or a Paystack test MoMo number.'
+              : `Pays a small real amount through ${PROVIDER_NAMES[active]} and marks a test order as paid.`}{' '}
+            Test orders are left out of sales reports.
+          </p>
+          <div className="inline-form">
+            <select value={amount} onChange={(e) => setAmount(Number(e.target.value))} style={{ flex: '0 0 auto' }}>
+              {[100, 200, 500, 1000].map((a) => (
+                <option key={a} value={a}>
+                  {formatGhs(a)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy === 'pay'}
+              onClick={() =>
+                run('pay', async () => {
+                  const r = await api<{ checkoutUrl: string }>('/admin/settings/payments/test-payment', { method: 'POST', body: JSON.stringify({ amount }) });
+                  window.open(r.checkoutUrl, '_blank', 'noopener');
+                })
+              }
+            >
+              {busy === 'pay' ? `Opening ${PROVIDER_NAMES[active]}…` : `Pay ${formatGhs(amount)} now`}
+            </button>
+          </div>
+        </>
+      )}
+      {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+
+function PaystackSettings({ onChange }: { onChange: () => void }) {
+  const [settings, setSettings] = useState<PaymentSettings | null>(null);
+  const [form, setForm] = useState({ publicKey: '', secretKey: '' });
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [test, setTest] = useState<Check | null>(null);
+
+  const load = useCallback(
+    () =>
+      api<PaymentSettings>('/admin/settings/payments')
+        .then((s) => {
+          setSettings(s);
+          if (s.paystack.connected) setForm({ publicKey: s.paystack.publicKey, secretKey: '' });
+          setEditing(!s.paystack.connected);
+        })
+        .catch((e: Error) => setError(e.message)),
+    [],
+  );
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const run = async (label: string, fn: () => Promise<void>) => {
+    setBusy(label);
+    setError('');
+    try {
+      await fn();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    void run('save', async () => {
+      const s = await api<PaymentSettings>('/admin/settings/payments/paystack', {
+        method: 'PUT',
+        body: JSON.stringify({ publicKey: form.publicKey.trim(), secretKey: form.secretKey.trim() || undefined }),
+      });
+      setSettings(s);
+      setEditing(false);
+      setForm((f) => ({ ...f, secretKey: '' }));
+      setTest(await api<Check>('/admin/settings/payments/paystack/test', { method: 'POST' }));
+      onChange();
+    });
+  };
+
+  if (!settings) return <div className="panel">{error || 'Loading…'}</div>;
+  const p = settings.paystack;
+  const keyKind = (k: string) => (k.startsWith('sk_live_') || k.startsWith('pk_live_') ? 'live' : k ? 'test' : '');
+  const mismatch = Boolean(form.secretKey && keyKind(form.publicKey) && keyKind(form.publicKey) !== keyKind(form.secretKey));
+
+  return (
+    <div className="panel" style={{ maxWidth: 760 }}>
+      <h2 style={{ marginTop: 0 }}>Paystack</h2>
+      <p>
+        Status:{' '}
+        {p.connected ? (
+          <>
+            <strong className="ok">Keys saved</strong> <span className={p.mode === 'live' ? 'badge-live' : 'badge-warn'}>{p.mode === 'live' ? 'LIVE' : 'TEST MODE'}</span>
+            {p.source === 'environment' && <span className="muted"> (from server settings)</span>}
+          </>
+        ) : (
+          <strong className="error">Not connected</strong>
+        )}
+      </p>
+
+      {!p.connected && (
+        <ol className="muted steps">
+          <li>
+            Create a free account at{' '}
+            <a href="https://dashboard.paystack.com/#/signup" target="_blank" rel="noreferrer">
+              paystack.com
+            </a>{' '}
+            and choose Ghana. Test keys work straight away, with no business documents.
+          </li>
+          <li>In the Paystack dashboard open Settings › API Keys &amp; Webhooks.</li>
+          <li>Copy the Test Public Key and Test Secret Key into the boxes below.</li>
+          <li>
+            Paste this webhook URL into the same Paystack page: <code>{settings.paystackWebhookUrl}</code>
+          </li>
+        </ol>
+      )}
+
+      {p.connected && !editing && (
+        <table className="table" style={{ marginBottom: 12 }}>
+          <tbody>
+            <tr>
+              <th>Public key</th>
+              <td>
+                <code>{p.publicKey}</code>
+              </td>
+            </tr>
+            <tr>
+              <th>Secret key</th>
+              <td>{p.secretKey}</td>
+            </tr>
+            <tr>
+              <th>Webhook URL (paste in Paystack)</th>
+              <td>
+                <code>{settings.paystackWebhookUrl}</code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+
+      {editing ? (
+        settings.canSaveKeys ? (
+          <form className="stack" onSubmit={save}>
+            <label>
+              Public key
+              <input value={form.publicKey} onChange={(e) => setForm({ ...form, publicKey: e.target.value })} required placeholder="pk_test_…" autoComplete="off" spellCheck={false} />
+            </label>
+            <label>
+              Secret key{p.connected && <span className="muted"> · leave empty to keep the saved key</span>}
+              <input
+                type="password"
+                value={form.secretKey}
+                onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
+                required={!p.connected}
+                placeholder="sk_test_…"
+                autoComplete="new-password"
+                spellCheck={false}
+              />
+            </label>
+            {mismatch && <p className="error">One key is a test key and the other is live. Use both test keys or both live keys.</p>}
+            <div className="inline-form">
+              <button className="btn" disabled={busy === 'save' || mismatch}>
+                {busy === 'save' ? 'Saving…' : 'Save and test'}
+              </button>
+              {p.connected && (
+                <button type="button" className="link" onClick={() => setEditing(false)}>
+                  Cancel
+                </button>
+              )}
+            </div>
+            <p className="muted">The secret key is stored encrypted and never shown again. Switch to the Live keys once Paystack has approved David&apos;s business.</p>
+          </form>
+        ) : (
+          <p className="error">The server has no SETTINGS_ENCRYPTION_KEY, so keys can&apos;t be saved here yet.</p>
+        )
+      ) : (
+        <div className="inline-form">
+          <button type="button" className="btn" onClick={() => setEditing(true)}>
+            Change keys
+          </button>
+          <button
+            type="button"
+            className="btn secondary"
+            disabled={busy === 'test'}
+            onClick={() => run('test', async () => setTest(await api<Check>('/admin/settings/payments/paystack/test', { method: 'POST' })))}
+          >
+            {busy === 'test' ? 'Testing…' : 'Test connection'}
+          </button>
+          {p.connected && p.source === 'dashboard' && (
+            <button
+              type="button"
+              className="link"
+              onClick={() =>
+                confirm('Remove the Paystack keys?') &&
+                run('clear', async () => {
+                  await api('/admin/settings/payments/paystack', { method: 'DELETE' });
+                  setTest(null);
+                  await load();
+                  onChange();
+                })
+              }
+            >
+              Remove keys
+            </button>
+          )}
+        </div>
+      )}
+      {test && (
+        <p className={test.ok ? 'ok' : 'error'}>
+          {test.ok ? '✓ ' : '✗ '}
+          {test.message}
+        </p>
+      )}
+      {error && <p className="error">{error}</p>}
     </div>
   );
 }
