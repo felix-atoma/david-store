@@ -48,6 +48,7 @@ export const STARTER_CATEGORIES: CategoryDef[] = [
     ],
     children: [
       leaf('bluetooth-speakers', 'Bluetooth speakers'),
+      leaf('party-karaoke-speakers', 'Party & karaoke speakers'),
       leaf('headphones-earbuds', 'Headphones & earbuds'),
       leaf('soundbars-home-theatre', 'Soundbars & home theatre'),
     ],

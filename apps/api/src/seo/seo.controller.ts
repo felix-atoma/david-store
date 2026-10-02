@@ -50,7 +50,7 @@ export class SeoController {
       '@type': 'Product',
       name: p.name,
       description,
-      image: p.images.map((i) => i.url),
+      image: p.images.map((i) => this.absolute(i.url)),
       brand: p.brand ? { '@type': 'Brand', name: p.brand.name } : undefined,
       sku: p.id,
       offers: {
@@ -65,7 +65,7 @@ export class SeoController {
         : undefined,
     };
 
-    return this.render({ title, description, url, image: p.images[0]?.url, type: 'product', jsonLd });
+    return this.render({ title, description, url, image: p.images[0] ? this.absolute(p.images[0].url) : undefined, type: 'product', jsonLd });
   }
 
   @Get('c/:slug')
@@ -78,7 +78,7 @@ export class SeoController {
       title: c.seoTitle ?? `${c.name}: ${c.tagline ?? ''}`.trim(),
       description: c.seoDescription ?? (c.description ?? '').slice(0, 160),
       url: `${this.storefront()}/c/${c.slug}`,
-      image: c.bannerUrl ?? undefined,
+      image: c.bannerUrl ? this.absolute(c.bannerUrl) : undefined,
       type: 'website',
     });
   }
@@ -134,6 +134,11 @@ export class SeoController {
       if (!this.template) return '<!doctype html><html><head></head><body></body></html>';
     }
     return this.template!.html;
+  }
+
+  /** Images uploaded to the storefront are stored as /products/...; link bots need the full URL. */
+  private absolute(url: string) {
+    return url.startsWith('/') ? `${this.storefront()}${url}` : url;
   }
 
   private storefront() {
