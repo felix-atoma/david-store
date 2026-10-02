@@ -644,6 +644,8 @@ model Order {
   couponId        String?
   coupon          Coupon?        @relation(fields: [couponId], references: [id])
   customerNote    String?
+  /// Payment test from the admin settings page; excluded from reports.
+  isTest          Boolean        @default(false)
   estimatedFrom   DateTime?
   estimatedTo     DateTime?
   cancelReason    String?

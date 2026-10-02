@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Route, Routes } from 'react-router-dom';
 import Categories from './pages/Categories';
 import Products from './pages/Products';
+import Settings from './pages/Settings';
 import { SessionProvider, useSession } from './session';
 
 /** Dashboard sections from the project specification. Each is built in its phase. */
@@ -21,7 +22,7 @@ const SECTIONS = [
   { path: '/activity', label: 'Activity log' },
 ];
 
-const BUILT = ['/products', '/categories'];
+const BUILT = ['/products', '/categories', '/settings'];
 
 export default function App() {
   return (
@@ -58,6 +59,7 @@ function Shell() {
         <Routes>
           <Route path="/products" element={<Products />} />
           <Route path="/categories" element={<Categories />} />
+          <Route path="/settings" element={<Settings />} />
           {SECTIONS.filter((s) => !BUILT.includes(s.path)).map((s) => (
             <Route key={s.path} path={s.path} element={<ComingSoon title={s.label} />} />
           ))}

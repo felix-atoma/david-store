@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { CommonModule } from './common/common.module';
+import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SeoModule } from './seo/seo.module';
@@ -26,6 +27,7 @@ class HealthController {
     AuthModule,
     CatalogModule,
     PaymentsModule,
+    OrdersModule,
     SeoModule,
   ],
   controllers: [HealthController],

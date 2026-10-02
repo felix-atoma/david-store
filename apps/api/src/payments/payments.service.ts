@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { OrderStatus, PaymentMethod, PaymentProvider, Prisma, TransactionStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { nextOrderNumber, takeStock } from '../orders/order-helpers';
 import { PrismaService } from '../prisma/prisma.service';
 import { HubtelService } from './hubtel.service';
 
@@ -116,8 +117,37 @@ export class PaymentsService {
       await tx.orderStatusEvent.create({
         data: { orderId: payment.orderId, status: OrderStatus.PLACED, note: `Paid by ${result.paymentMethod ?? 'Hubtel'}` },
       });
+      // Online orders take stock only once paid, so abandoned checkouts never hold it.
+      await takeStock(tx, payment.orderId);
     });
     return this.summary(TransactionStatus.SUCCESS, payment.order.number);
+  }
+
+  /**
+   * A real GH₵ payment through Hubtel with no products attached, so David can watch a payment
+   * go through end to end. The order is flagged isTest and left out of reports.
+   */
+  async startTestPayment(amount: number, actor: { sub: string; name: string; email: string | null }) {
+    const order = await this.prisma.order.create({
+      data: {
+        number: await nextOrderNumber(this.prisma),
+        userId: actor.sub,
+        status: OrderStatus.PENDING_PAYMENT,
+        paymentMethod: PaymentMethod.MOMO,
+        deliveryMethod: 'PICKUP',
+        subtotal: amount,
+        deliveryFee: 0,
+        total: amount,
+        isTest: true,
+        customerNote: 'Hubtel test payment from the admin settings page',
+        events: { create: { status: OrderStatus.PENDING_PAYMENT, note: 'Test payment started', actorId: actor.sub } },
+      },
+    });
+    return { orderNumber: order.number, ...(await this.startCheckout(order.number)) };
+  }
+
+  async onlineAvailable() {
+    return this.hubtel.configured();
   }
 
   private summary(status: TransactionStatus, orderNumber: string) {

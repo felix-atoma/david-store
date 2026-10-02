@@ -1,6 +1,6 @@
 import { discountPercent, formatGhs } from '@david-store/shared';
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api, type ProductCard, type SpecField } from '../api';
 import Breadcrumb from '../components/Breadcrumb';
 import { ProductGrid } from '../components/ProductCard';
@@ -56,6 +56,7 @@ const specText = (field: SpecField, value: unknown) => {
 
 export default function ProductPage() {
   const { slug = '' } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [variantId, setVariantId] = useState<string>('');
   const [image, setImage] = useState(0);
@@ -134,9 +135,14 @@ export default function ProductPage() {
           <p className={variant && variant.stock > 0 ? '' : 'muted'}>
             {!variant || variant.stock <= 0 ? 'Out of stock' : variant.stock <= 5 ? `Only ${variant.stock} left` : 'In stock'}
           </p>
-          {/* Cart and checkout arrive in the core-store phase. */}
-          <button className="btn" type="button" disabled={!variant || variant.stock <= 0}>
-            Add to cart
+          {/* Buy now goes straight to checkout; the cart arrives with customer accounts. */}
+          <button
+            className="btn"
+            type="button"
+            disabled={!variant || variant.stock <= 0}
+            onClick={() => variant && navigate(`/checkout?variant=${variant.id}&qty=1`)}
+          >
+            Buy now
           </button>
 
           <p style={{ marginTop: 16, fontSize: 14 }}>
