@@ -12,5 +12,9 @@
     "db:migrate": "pnpm --filter @david-store/api db:migrate",
     "db:seed": "pnpm --filter @david-store/api db:seed",
     "db:studio": "pnpm --filter @david-store/api db:studio"
+  },
+  "devDependencies": {
+    "@neon/config": "^1.8.3",
+    "@neon/env": "^1.4.8"
   }
 }
