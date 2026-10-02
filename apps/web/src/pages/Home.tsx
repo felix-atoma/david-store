@@ -1,3 +1,4 @@
+import { HOME_SEO_TITLE } from '@david-store/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type ProductCard } from '../api';
@@ -25,6 +26,7 @@ export default function Home() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    document.title = HOME_SEO_TITLE;
     api<HomeData>('/home').then(setData).catch((e: Error) => setError(e.message));
   }, []);
 

@@ -3,6 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// The public address of the store, used in index.html for the canonical link, share image and
+// structured data. Change it here (or set VITE_SITE_URL) when David's own domain is connected.
+process.env.VITE_SITE_URL ??= 'https://david-store-web.vercel.app';
+
 export default defineConfig({
   plugins: [
     react(),

@@ -1,4 +1,4 @@
-import { PRODUCT_SORTS, toCedis, toPesewas } from '@david-store/shared';
+import { categorySeoTitle, PRODUCT_SORTS, toCedis, toPesewas } from '@david-store/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api, type CategoryPage as Category, type ProductList, type SpecField } from '../api';
@@ -35,7 +35,12 @@ export default function CategoryPage() {
 
   useEffect(() => {
     setCategory(null);
-    api<Category>(`/categories/${slug}`).then(setCategory).catch((e: Error) => setError(e.message));
+    api<Category>(`/categories/${slug}`)
+      .then((c) => {
+        setCategory(c);
+        document.title = categorySeoTitle(c);
+      })
+      .catch((e: Error) => setError(e.message));
   }, [slug]);
 
   useEffect(() => {
@@ -72,8 +77,8 @@ export default function CategoryPage() {
     <>
       <Breadcrumb trail={category.breadcrumb.slice(0, -1)} current={category.name} />
       <section className="hero" style={category.bannerUrl ? { backgroundImage: `url(${category.bannerUrl})`, backgroundSize: 'cover' } : undefined}>
-        <h1>{category.tagline ?? category.name}</h1>
-        {category.tagline && <p style={{ fontWeight: 600, marginBottom: 8 }}>{category.name}</p>}
+        <h1>{category.name}</h1>
+        {category.tagline && <p style={{ fontWeight: 600, marginBottom: 8 }}>{category.tagline}</p>}
         {category.description && <p>{category.description}</p>}
       </section>
       {category.children.length > 0 && (

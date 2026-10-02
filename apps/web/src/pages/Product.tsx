@@ -1,4 +1,4 @@
-import { discountPercent, formatGhs } from '@david-store/shared';
+import { discountPercent, formatGhs, productSeoTitle } from '@david-store/shared';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, type ProductCard, type SpecField } from '../api';
@@ -69,7 +69,7 @@ export default function ProductPage() {
       .then((p) => {
         setProduct(p);
         setVariantId(p.variants[0]?.id ?? '');
-        document.title = `${p.name} | Davo`;
+        document.title = productSeoTitle(p);
         rememberView(p.slug);
       })
       .catch((e: Error) => setError(e.message));
